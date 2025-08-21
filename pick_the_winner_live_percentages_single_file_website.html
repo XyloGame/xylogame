@@ -1,0 +1,258 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>Premier League 2025/26 — Who Will Win?</title>
+  <style>
+    :root{
+      --bg: #0b1020; --card:#121a33; --muted:#9fb0ffcc; --text:#e8edff;
+      --accent1:#5b8cff; --accent2:#7ae0c2; --danger:#ff6b6b;
+    }
+    *{box-sizing:border-box}
+    body{ margin:0; font-family: ui-sans-serif, system-ui, -apple-system, Segoe UI, Roboto, Helvetica, Arial;
+      background: radial-gradient(1200px 800px at 20% -20%, #1a2348, transparent), var(--bg);
+      color:var(--text); min-height:100dvh; display:grid; place-items:center; padding:24px; }
+    .shell{ width:min(980px, 100%);}
+    .card{ background: linear-gradient(180deg, rgba(255,255,255,.06), transparent 40%), var(--card);
+      border:1px solid rgba(255,255,255,.075); box-shadow: 0 20px 50px rgba(0,0,0,.45);
+      border-radius:24px; padding:28px; backdrop-filter: blur(6px); }
+    h1{margin:0 0 6px; font-size: clamp(1.25rem, 1.2rem + 1.5vw, 2rem); letter-spacing:.3px}
+    p.sub{margin:.25rem 0 1.25rem; color:var(--muted)}
+
+    .controls{display:flex; gap:12px; flex-wrap:wrap; align-items:center; margin: 10px 0 6px}
+    .search{ flex:1 1 260px; display:flex; }
+    .search input{ width:100%; background:#0f1630; border:1px solid rgba(255,255,255,.12); color:var(--text);
+      padding:10px 12px; border-radius:12px }
+
+    form{display:grid; gap:14px; margin:16px 0 10px}
+    .options{display:grid; grid-template-columns: repeat(auto-fit, minmax(220px, 1fr)); gap:12px}
+    .opt{ position:relative; border-radius:16px; padding:12px 14px; background:#0f1630; border:1px solid rgba(255,255,255,.08);
+      cursor:pointer; user-select:none; display:flex; align-items:center; gap:12px; transition:.2s ease; }
+    .opt:hover{ transform: translateY(-1px); border-color: rgba(123,167,255,.45) }
+    .opt input{ appearance:none; width:18px; height:18px; border-radius:50%; border:2px solid #90a4ff; display:inline-block; position:relative }
+    .opt input:checked{ border-color:transparent; box-shadow: inset 0 0 0 6px var(--accent1)}
+    .opt .label{font-weight:600}
+
+    .row{display:flex; gap:12px; flex-wrap:wrap; align-items:center}
+    button{ appearance:none; border:0; border-radius:999px; padding:12px 18px; font-weight:700; cursor:pointer; transition:.2s ease;
+      background:linear-gradient(90deg, var(--accent1), #9aaeff); color:#0b1020; box-shadow: 0 10px 24px rgba(91,140,255,.35); }
+    button[disabled]{ opacity:.55; cursor:not-allowed; box-shadow:none }
+    .ghost{ background:transparent; color:var(--muted); border:1px solid rgba(255,255,255,.12) }
+    .danger{ background:linear-gradient(90deg, var(--danger), #ffa8a8); color:#1a0f0f; box-shadow: 0 10px 24px rgba(255,107,107,.25) }
+
+    .stats{ margin-top:18px; display:grid; gap:10px }
+    .stat{ background:#0d1329; border:1px solid rgba(255,255,255,.08); border-radius:16px; padding:12px; }
+    .stat-head{ display:flex; align-items:center; justify-content:space-between; margin-bottom:10px; font-size:.95rem }
+    .bar{ height:16px; border-radius:999px; background:rgba(255,255,255,.06); overflow:hidden; position:relative }
+    .fill{ height:100%; width:0%; transition: width .6s ease; background: linear-gradient(90deg, var(--accent2), #d8fff2) }
+
+    .footer{ display:flex; justify-content:space-between; align-items:center; margin-top:16px; color:var(--muted); font-size:.9rem; flex-wrap:wrap; gap:10px }
+    .total{ font-weight:700; color:var(--text) }
+    .note{ opacity:.9 }
+
+    .toast{ position: fixed; inset:auto 16px 16px auto; background:#0c142e; color:var(--text); border:1px solid rgba(255,255,255,.08);
+      padding:10px 12px; border-radius:12px; box-shadow:0 10px 30px rgba(0,0,0,.4); opacity:0; transform: translateY(8px); transition: .25s ease }
+    .toast.show{ opacity:1; transform: translateY(0) }
+  </style>
+</head>
+<body>
+  <div class="shell">
+    <div class="card" role="region" aria-label="Premier League 2025/26 poll">
+      <h1>Premier League 2025/26 — Who will win?</h1>
+      <p class="sub">Pick your champion from the 20 clubs. Percentages update live on this device (no server required).</p>
+
+      <div class="controls">
+        <div class="search"><input id="search" type="search" placeholder="Filter teams… (e.g., Arsenal)" aria-label="Filter teams" /></div>
+      </div>
+
+      <form id="voteForm" aria-labelledby="poll-label">
+        <div class="options" id="options" role="radiogroup" aria-label="Choose your team"></div>
+        <div class="row">
+          <button id="submitBtn" type="submit">Submit my pick</button>
+          <button id="changeBtn" type="button" class="ghost" title="Change your vote">Change my pick</button>
+          <button id="resetBtn" type="button" class="danger" title="Reset counts on this device">Reset counts (this device)</button>
+        </div>
+      </form>
+
+      <section class="stats" id="stats" aria-live="polite"></section>
+
+      <div class="footer">
+        <div><span class="total" id="totalCount">0</span> total picks</div>
+        <div class="note">One vote per browser (until you change or reset).</div>
+      </div>
+    </div>
+  </div>
+
+  <div class="toast" id="toast" role="status" aria-live="polite"></div>
+
+  <script>
+    // --- Teams for 2025/26 (as provided) ---
+    const TEAMS = [
+      'Arsenal',
+      'Aston Villa',
+      'Bournemouth',
+      'Brentford',
+      'Brighton and Hove Albion',
+      'Burnley',
+      'Chelsea',
+      'Crystal Palace',
+      'Everton',
+      'Fulham',
+      'Leeds United',
+      'Liverpool',
+      'Manchester City',
+      'Manchester United',
+      'Newcastle United',
+      'Nottingham Forest',
+      'Sunderland',
+      'Tottenham Hotspur',
+      'West Ham United',
+      'Wolverhampton Wanderers'
+    ];
+
+    const KEY = 'pl_25_26_poll_v1';
+    const el = {
+      form: document.getElementById('voteForm'),
+      options: document.getElementById('options'),
+      stats: document.getElementById('stats'),
+      submit: document.getElementById('submitBtn'),
+      change: document.getElementById('changeBtn'),
+      reset: document.getElementById('resetBtn'),
+      total: document.getElementById('totalCount'),
+      toast: document.getElementById('toast'),
+      search: document.getElementById('search')
+    };
+
+    const getState = () => {
+      try { return JSON.parse(localStorage.getItem(KEY)) || { counts: Array(TEAMS.length).fill(0), myVote: null }; }
+      catch { return { counts: Array(TEAMS.length).fill(0), myVote: null }; }
+    }
+    const setState = (s) => localStorage.setItem(KEY, JSON.stringify(s));
+
+    function showToast(msg){
+      el.toast.textContent = msg;
+      el.toast.classList.add('show');
+      setTimeout(() => el.toast.classList.remove('show'), 1800);
+    }
+
+    function percent(part, total){
+      if(total === 0) return 0;
+      return Math.round((part / total) * 100);
+    }
+
+    function renderOptions(filter=''){
+      const s = filter.trim().toLowerCase();
+      el.options.innerHTML = '';
+      TEAMS.forEach((team, i) => {
+        if(s && !team.toLowerCase().includes(s)) return;
+        const id = 't' + i;
+        const label = document.createElement('label');
+        label.className = 'opt';
+        label.htmlFor = id;
+        label.innerHTML = `<input type="radio" name="team" id="${id}" value="${i}" /><span class="label">${team}</span>`;
+        el.options.appendChild(label);
+      });
+      bindVoteStateToRadios();
+    }
+
+    function bindVoteStateToRadios(){
+      const state = getState();
+      const voted = state.myVote !== null;
+      el.form.querySelectorAll('input[name="team"]').forEach(r => {
+        r.checked = (voted && Number(r.value) === state.myVote);
+        r.disabled = voted; // lock after vote
+      });
+    }
+
+    function renderStats(){
+      const state = getState();
+      const total = state.counts.reduce((a,b) => a+b, 0);
+      el.total.textContent = total;
+      el.stats.innerHTML = '';
+
+      TEAMS.forEach((team, i) => {
+        const pct = percent(state.counts[i], total);
+        const wrap = document.createElement('div');
+        wrap.className = 'stat';
+        wrap.innerHTML = `
+          <div class="stat-head"><span>${team}</span><span>${pct}%</span></div>
+          <div class="bar"><div class="fill" style="width:${pct}%"></div></div>
+        `;
+        el.stats.appendChild(wrap);
+      });
+
+      const voted = state.myVote !== null;
+      el.submit.disabled = voted;
+      el.change.disabled = !voted;
+      el.submit.textContent = voted ? 'Pick submitted' : 'Submit my pick';
+    }
+
+    function updateUI(){
+      bindVoteStateToRadios();
+      renderStats();
+    }
+
+    function castVote(idx){
+      const s = getState();
+      if(s.myVote !== null) return;
+      s.counts[idx]++;
+      s.myVote = idx;
+      setState(s);
+      updateUI();
+      showToast('Thanks! Your pick was recorded.');
+    }
+
+    function changeVote(){
+      const s = getState();
+      if(s.myVote === null) return;
+      el.form.querySelectorAll('input[name="team"]').forEach(r => r.disabled = false);
+      el.submit.disabled = false;
+      el.change.disabled = true;
+      el.submit.textContent = 'Submit new pick';
+      showToast('You can change your pick now.');
+    }
+
+    function submitChangedVote(idx){
+      const s = getState();
+      if(s.myVote === null){ castVote(idx); return; }
+      const prev = s.myVote;
+      if(idx === prev){ updateUI(); showToast('No change made.'); return; }
+      s.counts[prev] = Math.max(0, s.counts[prev]-1);
+      s.counts[idx]++;
+      s.myVote = idx;
+      setState(s);
+      updateUI();
+      showToast('Pick updated.');
+    }
+
+    el.form.addEventListener('submit', (e) => {
+      e.preventDefault();
+      const chosen = el.form.querySelector('input[name="team"]:checked');
+      if(!chosen){ showToast('Please choose a team.'); return; }
+      const idx = Number(chosen.value);
+      const s = getState();
+      if(s.myVote === null) castVote(idx); else submitChangedVote(idx);
+    });
+
+    el.change.addEventListener('click', changeVote);
+    el.reset.addEventListener('click', () => {
+      if(confirm('Reset all counts on this device and clear your pick?')){
+        setState({ counts: Array(TEAMS.length).fill(0), myVote: null });
+        renderOptions(el.search.value);
+        updateUI();
+        showToast('Counts reset on this device.');
+      }
+    });
+
+    el.search.addEventListener('input', () => {
+      renderOptions(el.search.value);
+    });
+
+    // Initialize
+    if(!localStorage.getItem(KEY)) setState({ counts: Array(TEAMS.length).fill(0), myVote: null });
+    renderOptions('');
+    updateUI();
+  </script>
+</body>
+</html>
